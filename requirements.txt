@@ -1,0 +1,13 @@
+fastapi
+uvicorn[standard]
+SQLAlchemy>=1.4
+asyncpg
+alembic
+aiosqlite
+psycopg2-binary
+python-dotenv
+cachetools
+requests
+httpx
+pytest 
+pytest-asyncio
