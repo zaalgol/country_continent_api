@@ -8,7 +8,7 @@ from app.models.models import Country
 from app.schemas import CountryCreate, CountryUpdate, CountryOut
 from app.dependencies import get_db
 from app.crud import (
-    get_country_by_name_cached, get_countries, create_country, update_country, delete_country, get_countries_after
+    get_country_by_name_cached, get_countries, create_country, update_country, delete_country, get_country_continent_mapping
 )
 
 router = APIRouter(
@@ -27,27 +27,20 @@ async def get_session() -> AsyncGenerator[AsyncSession, None]:
 @router.get("/", response_model=List[CountryOut])
 async def read_countries(
     skip: int = 0,
-    limit: int = 10,
+    limit: Optional[int] = 10,  # Make limit optional
     updated_after: Optional[datetime] = Query(None),
     session: AsyncSession = Depends(get_db)
 ):
     """
     Retrieve a list of countries with pagination and optional updated_at filtering.
+    If limit is set to -1, return all countries.
     """
+    if limit == -1:  # Special case for no limit
+        limit = None
+
     countries = await get_countries(session, skip=skip, limit=limit, updated_after=updated_after)
     return countries
 
-@router.get("/after", response_model=List[CountryOut])
-async def read_countries_after(
-    last_updated_at: datetime,
-    limit: int = 10,
-    session: AsyncSession = Depends(get_db)
-):
-    """
-    Retrieve a list of countries updated after a specific timestamp with limit.
-    """
-    countries = await get_countries_after(session, last_updated_at, limit)
-    return countries
 
 @router.get("/{country_code}", response_model=CountryOut)
 async def read_country(country_code: str, session: AsyncSession = Depends(get_db)):
@@ -101,3 +94,13 @@ async def search_country_by_name(country_name: str, session: AsyncSession = Depe
     if not country:
         raise HTTPException(status_code=404, detail="Country not found")
     return country
+
+@router.get("/continents/", response_model=dict)
+async def get_country_continent_mapping_api(session: AsyncSession = Depends(get_db)):
+    """
+    Retrieve a dictionary mapping each country name to its corresponding continent name.
+    """
+    mapping = await get_country_continent_mapping(session)
+    if not mapping:
+        raise HTTPException(status_code=404, detail="No countries or continents found")
+    return mapping

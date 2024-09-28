@@ -5,12 +5,11 @@ import os
 import re
 
 from sqlalchemy.future import select
-from sqlalchemy.exc import IntegrityError
 from sqlalchemy import text
 
 sys.path.append(os.path.abspath('.'))
 from app.database import async_session, engine, Base
-from app.models.models import Continent, Country
+from app.models.models import Continent
 
 # Gist URL that contains the initial SQL data
 GIST_URL = "https://gist.githubusercontent.com/nobuti/3816985/raw/0c3ad0cf3854bc8c4ac8dcb335ee59de5218aa4f/gistfile1.txt"
@@ -22,8 +21,7 @@ async def fetch_and_parse_sql():
     response = requests.get(GIST_URL)
     if response.status_code == 200:
         sql_commands = response.text.split(";")
-        # for q in sql_commands:
-        #     print("<" * 10 + f"{q}" +">" * 10 )
+
         return sql_commands
     else:
         raise Exception(f"Failed to fetch the SQL file. Status code: {response.status_code}")
@@ -59,7 +57,6 @@ async def init_db():
 
         for command in sql_commands:
             sql = clean_sql_statement(command)
-            print("<" * 10 + f"{sql}" + ">" * 10 )
             if sql:
                 try:
                     await session.execute(text(sql))

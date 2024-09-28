@@ -19,8 +19,8 @@ async def get_country_by_name(session: AsyncSession, country_name: str) -> Optio
     return result.scalar_one_or_none()
 
 #  Define a cache with a max size and TTL (time-to-live)
-country_cache = TTLCache(maxsize=1000, ttl=1)  # Cache up to 1000 items for 5 minutes
-# @cached(cache=country_cache)
+country_cache = TTLCache(maxsize=1000, ttl=300)  # Cache up to 1000 items for 5 minutes
+@cached(cache=country_cache)
 async def get_country_by_name_cached(session: AsyncSession, country_name: str) -> Optional[Country]:
     return await get_country_by_name(session, country_name)
 
@@ -34,14 +34,6 @@ async def get_countries(session: AsyncSession, skip: int = 0, limit: int = 10, u
     result = await session.execute(query)
     return result.scalars().all()
 
-async def get_countries_after(session: AsyncSession, last_updated_at: datetime, limit: int = 10) -> List[Country]:
-    result = await session.execute(
-        select(Country)
-        .where(Country.updated_at > last_updated_at)
-        .order_by(Country.updated_at)
-        .limit(limit)
-    )
-    return result.scalars().all()
 
 async def create_country(session: AsyncSession, country_data) -> Country:
     """
@@ -72,6 +64,16 @@ async def delete_country(session: AsyncSession, db_country: Country):
     await session.commit()
 
 # CRUD operations for Continent
+
+async def get_country_continent_mapping(session: AsyncSession) -> dict:
+    """
+    Retrieve a dictionary mapping each country name to its corresponding continent name.
+    """
+    result = await session.execute(
+        select(Country.name, Continent.name).join(Continent, Country.continent_code == Continent.code)
+    )
+    country_continent_mapping = {country: continent for country, continent in result.all()}
+    return country_continent_mapping
 
 async def get_continent_by_code(session: AsyncSession, code: str) -> Optional[Continent]:
     """
