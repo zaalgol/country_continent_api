@@ -11,6 +11,8 @@ jobs:
 
     steps:
     - uses: actions/checkout@v2
+      with:
+        fetch-depth: 0  # Fetch all history for all branches and tags
 
     - name: Set up Python
       uses: actions/setup-python@v2
@@ -26,5 +28,7 @@ jobs:
       env:
         HEROKU_API_KEY: ${{ secrets.HEROKU_API_KEY }}
       run: |
+        git config --global user.email "zaalgol@gmail.com"
+        git config --global user.name "zaalgol"
         git remote add heroku https://heroku:$HEROKU_API_KEY@git.heroku.com/country-continent-api.git
         git push heroku main
