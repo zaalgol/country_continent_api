@@ -22,12 +22,9 @@ jobs:
         python -m pip install --upgrade pip
         pip install -r requirements.txt
 
-    - name: Install Heroku CLI
-      run: curl https://cli-assets.heroku.com/install.sh | sh
-
     - name: Deploy to Heroku
       env:
         HEROKU_API_KEY: ${{ secrets.HEROKU_API_KEY }}
       run: |
-        heroku git:remote -a country-continent-api
+        git remote add heroku https://heroku:$HEROKU_API_KEY@git.heroku.com/country-continent-api.git
         git push heroku main
