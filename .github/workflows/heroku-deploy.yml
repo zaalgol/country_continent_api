@@ -33,5 +33,3 @@ jobs:
         heroku auth:token
         heroku git:remote -a country-continent-api
         git push heroku main
-
-
