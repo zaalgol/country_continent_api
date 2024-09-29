@@ -37,8 +37,6 @@ def clean_sql_statement(sql):
     sql = sql.replace("ENGINE=InnoDB", "")
     # Replace backticks with double quotes for identifiers
     sql = sql.replace("`", '"')
-    # Remove single quotes around table and column names
-    sql = re.sub(r"'(\w+)'", r'"\1"', sql)
     # Remove UNSIGNED as it's not supported in PostgreSQL
     sql = sql.replace("UNSIGNED", "")
     # Replace INT(11) with INTEGER
@@ -52,15 +50,13 @@ def clean_sql_statement(sql):
     # Fix PRIMARY KEY syntax
     sql = sql.replace("PRIMARY KEY", "PRIMARY KEY ")
     # Fix FOREIGN KEY syntax
-    sql = re.sub(r"FOREIGN KEY\s*\(([^)]+)\)\s*REFERENCES", r"FOREIGN KEY(\1) REFERENCES", sql)
-    # Modify INSERT statement for continents
-    if "INSERT INTO \"continents\"" in sql:
-        sql = sql.replace("INSERT INTO \"continents\" VALUES", 
-                          "INSERT INTO \"continents\" (code, name) VALUES")
-    # Modify INSERT statement for countries
-    if "INSERT INTO \"countries\"" in sql:
-        sql = sql.replace("INSERT INTO \"countries\" VALUES", 
-                          "INSERT INTO \"countries\" (code, name, full_name, iso3, number, continent_code) VALUES")
+    sql = re.sub(r"CONSTRAINT\s+([^\s]+)\s+FOREIGN KEY", r"CONSTRAINT \1 FOREIGN KEY", sql)
+    # Handle INSERT statements
+    if sql.startswith("INSERT INTO"):
+        # Replace double quotes with single quotes for string values
+        sql = re.sub(r'"([^"]*)"', r"'\1'", sql)
+        # Replace ( with ( and ) with ) to ensure proper formatting
+        sql = sql.replace("(", "(").replace(")", ")")
     return sql.strip()
 
 async def init_db():
@@ -97,11 +93,21 @@ async def init_db():
                 sql = clean_sql_statement(command)
                 if sql:
                     try:
-                        if sql.startswith("CREATE INDEX"):
-                            # Execute CREATE INDEX statements separately
+                        if sql.startswith("CREATE INDEX") or sql.startswith("ALTER TABLE"):
+                            # Execute CREATE INDEX and ALTER TABLE statements separately
                             await session.execute(text(sql))
                             await session.commit()
-                        elif not sql.startswith("ALTER TABLE"):  # Skip ALTER TABLE statements
+                        elif sql.startswith("INSERT INTO"):
+                            # For INSERT statements, use parameterized queries
+                            table_name = re.search(r'INSERT INTO "(\w+)"', sql).group(1)
+                            columns = re.search(r'\(([^)]+)\)', sql).group(1).split(', ')
+                            values = re.findall(r'\(([^)]+)\)', sql)[1:]
+                            for value_set in values:
+                                value_list = [v.strip().strip("'") for v in value_set.split(',')]
+                                insert_stmt = f'INSERT INTO "{table_name}" ({", ".join(columns)}) VALUES ({", ".join([":"+c for c in columns])})'
+                                await session.execute(text(insert_stmt), dict(zip(columns, value_list)))
+                            await session.commit()
+                        else:
                             await session.execute(text(sql))
                             await session.commit()
                     except SQLAlchemyError as e:
