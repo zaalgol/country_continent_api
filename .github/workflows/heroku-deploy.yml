@@ -38,7 +38,7 @@ jobs:
         git config --global user.email "zaalgol@gmail.com"
         git config --global user.name "zaalgol"
         git remote add heroku https://heroku:$HEROKU_API_KEY@git.heroku.com/country-continent-api.git
-        git pull heroku main --rebase
+        git pull heroku main --rebase || git rebase --skip
 
     - name: Apply stashed changes (if any)
       run: |
