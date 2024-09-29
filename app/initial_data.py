@@ -3,6 +3,8 @@ import requests
 import sys
 import os
 import re
+import logging
+from sqlalchemy.exc import SQLAlchemyError
 
 from sqlalchemy.future import select
 from sqlalchemy import text
@@ -10,6 +12,9 @@ from sqlalchemy import text
 sys.path.append(os.path.abspath('.'))
 from app.database import async_session, engine, Base
 from app.models.models import Continent
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 # Gist URL that contains the initial SQL data
 GIST_URL = "https://gist.githubusercontent.com/nobuti/3816985/raw/0c3ad0cf3854bc8c4ac8dcb335ee59de5218aa4f/gistfile1.txt"
@@ -42,35 +47,55 @@ def clean_sql_statement(sql):
     return sql.strip()
 
 async def init_db():
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.drop_all)
-        await conn.run_sync(Base.metadata.create_all)
+    logger.info("Starting database initialization...")
+    try:
+        async with engine.begin() as conn:
+            logger.info("Dropping all tables...")
+            await conn.run_sync(Base.metadata.drop_all)
+            logger.info("Creating all tables...")
+            await conn.run_sync(Base.metadata.create_all)
 
-    async with async_session() as session:
-        result = await session.execute(select(Continent))
-        continents = result.scalars().all()
-        if continents:
-            print("Initial data already exists.")
-            return
+        async with async_session() as session:
+            logger.info("Checking for existing data...")
+            try:
+                result = await session.execute(select(Continent))
+                continents = result.scalars().all()
+                if continents:
+                    logger.info("Initial data already exists.")
+                    return
+            except SQLAlchemyError as e:
+                logger.error(f"Error checking for existing data: {e}")
+                raise
 
-        sql_commands = await fetch_and_parse_sql()
+            logger.info("Fetching and parsing SQL commands...")
+            try:
+                sql_commands = await fetch_and_parse_sql()
+            except Exception as e:
+                logger.error(f"Error fetching and parsing SQL: {e}")
+                raise
 
-        for command in sql_commands:
-            sql = clean_sql_statement(command)
-            if sql:
-                try:
-                    if sql.startswith("CREATE INDEX"):
-                        # Execute CREATE INDEX statements separately
+            for command in sql_commands:
+                sql = clean_sql_statement(command)
+                if sql:
+                    try:
+                        logger.info(f"Executing SQL: {sql[:50]}...")  # Log first 50 chars of SQL
                         await session.execute(text(sql))
-                    elif not sql.startswith("ALTER TABLE"):  # Skip ALTER TABLE statements
-                        await session.execute(text(sql))
-                    await session.commit()
-                except Exception as e:
-                    print(f"Error executing SQL: {e}")
-                    print(f"Problematic SQL: {sql}")
-                    await session.rollback()
+                        await session.commit()
+                    except SQLAlchemyError as e:
+                        logger.error(f"Error executing SQL: {e}")
+                        logger.error(f"Problematic SQL: {sql}")
+                        await session.rollback()
 
-        print("Continents and Countries data inserted.")
+        logger.info("Database initialization completed successfully.")
+    except Exception as e:
+        logger.error(f"An error occurred during database initialization: {e}")
+        raise
 
 if __name__ == '__main__':
-    asyncio.run(init_db())
+    logger.info("Running database initialization script...")
+    try:
+        asyncio.run(init_db())
+        logger.info("Script execution completed successfully.")
+    except Exception as e:
+        logger.error(f"Script execution failed: {e}")
+        sys.exit(1)
