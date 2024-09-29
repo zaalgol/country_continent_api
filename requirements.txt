@@ -1,6 +1,6 @@
 fastapi
 uvicorn[standard]
-SQLAlchemy>=1.4
+sqlalchemy[asyncio]
 asyncpg
 alembic
 aiosqlite
@@ -11,3 +11,4 @@ requests
 httpx
 pytest 
 pytest-asyncio
+asyncpg

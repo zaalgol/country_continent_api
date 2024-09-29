@@ -1,50 +1,15 @@
 import asyncio
-import requests
 import sys
-import os
-import re
 import logging
-from sqlalchemy.exc import SQLAlchemyError
-
+from sqlalchemy.exc import SQLAlchemyError, ProgrammingError
 from sqlalchemy.future import select
 from sqlalchemy import text
-
-sys.path.append(os.path.abspath('.'))
 from app.database import async_session, engine, Base
 from app.models.models import Continent
 
+# Set up logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
-
-# Gist URL that contains the initial SQL data
-GIST_URL = "https://gist.githubusercontent.com/nobuti/3816985/raw/0c3ad0cf3854bc8c4ac8dcb335ee59de5218aa4f/gistfile1.txt"
-
-async def fetch_and_parse_sql():
-    """
-    Fetches the SQL file from the gist and parses the SQL commands.
-    """
-    response = requests.get(GIST_URL)
-    if response.status_code == 200:
-        sql_commands = response.text.split(";")
-
-        return sql_commands
-    else:
-        raise Exception(f"Failed to fetch the SQL file. Status code: {response.status_code}")
-    
-def clean_sql_statement(sql):
-    # Remove COMMENT clauses
-    sql = re.sub(r"COMMENT\s+'[^']*'", "", sql)
-    # Remove ENGINE=InnoDB
-    sql = sql.replace("ENGINE=InnoDB", "")
-    # Replace ` with " for identifiers
-    sql = sql.replace("`", '"')
-
-    # Modify INSERT statement for continents
-    if "INSERT INTO \"continents\"" in sql:
-        sql = sql.replace("INSERT INTO \"continents\" VALUES", 
-                          "INSERT INTO \"continents\" (code, name) VALUES")
-
-    return sql.strip()
 
 async def init_db():
     logger.info("Starting database initialization...")
@@ -63,6 +28,8 @@ async def init_db():
                 if continents:
                     logger.info("Initial data already exists.")
                     return
+            except ProgrammingError:
+                logger.info("Tables don't exist yet. Proceeding with initialization.")
             except SQLAlchemyError as e:
                 logger.error(f"Error checking for existing data: {e}")
                 raise

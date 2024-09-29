@@ -13,17 +13,6 @@ DATABASE_URL = os.getenv("DATABASE_URL", "sqlite+aiosqlite:///./countries.db")
 if DATABASE_URL.startswith("postgres://"):
     DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
 
-# For SQLite, we need to ensure the path is absolute
-if DATABASE_URL.startswith("sqlite"):
-    DATABASE_URL = DATABASE_URL.replace("sqlite:", "sqlite+aiosqlite:")
-    if DATABASE_URL.startswith("sqlite+aiosqlite:///"):
-        # It's already an absolute path
-        sqlite_db_path = DATABASE_URL.split("sqlite+aiosqlite:///")[1]
-    else:
-        # It's a relative path, make it absolute
-        sqlite_db_path = os.path.join(os.getcwd(), DATABASE_URL.split("sqlite+aiosqlite://")[1])
-    DATABASE_URL = f"sqlite+aiosqlite:///{sqlite_db_path}"
-
 print(f"Using DATABASE_URL: {DATABASE_URL}")  # Add this line for debugging
 
 # Create the async engine

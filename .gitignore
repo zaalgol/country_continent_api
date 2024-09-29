@@ -5,6 +5,7 @@ __pycache__/
 
 # Database files
 *.db
+countries.db
 
 # Environment variables
 .env
