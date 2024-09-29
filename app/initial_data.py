@@ -88,7 +88,7 @@ async def process_sql_commands(sql_commands):
                 logger.info(f"Cleaned SQL: {sql[:100]}...")  # Log first 100 characters
                 await process_sql_command(sql, session)
 
-async def process_sql_command(sql, session):
+async def process_sql_command(sql, session): 
     """
     Processes a single SQL command.
     """
