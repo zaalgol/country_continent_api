@@ -59,7 +59,11 @@ async def init_db():
             sql = clean_sql_statement(command)
             if sql:
                 try:
-                    await session.execute(text(sql))
+                    if sql.startswith("CREATE INDEX"):
+                        # Execute CREATE INDEX statements separately
+                        await session.execute(text(sql))
+                    elif not sql.startswith("ALTER TABLE"):  # Skip ALTER TABLE statements
+                        await session.execute(text(sql))
                     await session.commit()
                 except Exception as e:
                     print(f"Error executing SQL: {e}")
