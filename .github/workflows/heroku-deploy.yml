@@ -24,11 +24,14 @@ jobs:
         python -m pip install --upgrade pip
         pip install -r requirements.txt
 
+    - name: Ensure post_deploy.sh is executable
+      run: chmod +x post_deploy.sh
+
     - name: Deploy to Heroku
       env:
         HEROKU_API_KEY: ${{ secrets.HEROKU_API_KEY }}
       run: |
-        git config --global user.email "zaalgol@gmail.com"
-        git config --global user.name "zaalgol"
+        git config --global user.email "you@example.com"
+        git config --global user.name "Your Name"
         git remote add heroku https://heroku:$HEROKU_API_KEY@git.heroku.com/country-continent-api.git
         git push heroku main
