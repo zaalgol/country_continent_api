@@ -51,12 +51,19 @@ def clean_sql_statement(sql):
     sql = sql.replace("PRIMARY KEY", "PRIMARY KEY ")
     # Fix FOREIGN KEY syntax
     sql = re.sub(r"CONSTRAINT\s+([^\s]+)\s+FOREIGN KEY", r"CONSTRAINT \1 FOREIGN KEY", sql)
+    
+    # Handle CREATE TABLE statements
+    if sql.startswith("CREATE TABLE"):
+        # Add updated_at column
+        sql = sql.replace("PRIMARY KEY", "updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,\n  PRIMARY KEY")
+    
     # Handle INSERT statements
     if sql.startswith("INSERT INTO"):
         # Replace double quotes with single quotes for string values
         sql = re.sub(r'"([^"]*)"', r"'\1'", sql)
         # Replace ( with ( and ) with ) to ensure proper formatting
         sql = sql.replace("(", "(").replace(")", ")")
+    
     return sql.strip()
 
 async def init_db():
@@ -93,8 +100,11 @@ async def init_db():
                 sql = clean_sql_statement(command)
                 if sql:
                     try:
-                        if sql.startswith("CREATE INDEX") or sql.startswith("ALTER TABLE"):
-                            # Execute CREATE INDEX and ALTER TABLE statements separately
+                        if sql.startswith("CREATE TABLE"):
+                            # Skip CREATE TABLE statements as tables are already created by SQLAlchemy
+                            continue
+                        elif sql.startswith("CREATE INDEX"):
+                            # Execute CREATE INDEX statements
                             await session.execute(text(sql))
                             await session.commit()
                         elif sql.startswith("INSERT INTO"):
