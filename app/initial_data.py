@@ -41,8 +41,12 @@ def clean_sql_statement(sql):
     sql = sql.replace("UNSIGNED", "")
     # Replace INT(11) with INTEGER
     sql = re.sub(r"INT\(\d+\)", "INTEGER", sql)
-    # Replace AUTO_INCREMENT with SERIAL
-    sql = sql.replace("AUTO_INCREMENT", "SERIAL")
+    # Replace ZEROFILL with nothing (not supported in PostgreSQL)
+    sql = sql.replace("ZEROFILL", "")
+    # Replace SMALLINT with SMALLINT
+    sql = re.sub(r"SMALLINT\(\d+\)", "SMALLINT", sql)
+    # Replace KEY with CREATE INDEX IF NOT EXISTS
+    sql = sql.replace("KEY", "CREATE INDEX IF NOT EXISTS")
     # Modify INSERT statement for continents
     if "INSERT INTO \"continents\"" in sql:
         sql = sql.replace("INSERT INTO \"continents\" VALUES", 
@@ -51,6 +55,8 @@ def clean_sql_statement(sql):
     if "INSERT INTO \"countries\"" in sql:
         sql = sql.replace("INSERT INTO \"countries\" VALUES", 
                           "INSERT INTO \"countries\" (code, name, full_name, iso3, number, continent_code) VALUES")
+    # Replace double quotes around string values with single quotes
+    sql = re.sub(r'"([^"]*)"', r"'\1'", sql)
     return sql.strip()
 
 async def init_db():
@@ -87,8 +93,11 @@ async def init_db():
                 sql = clean_sql_statement(command)
                 if sql:
                     try:
-                        logger.info(f"Executing SQL: {sql[:50]}...")  # Log first 50 chars of SQL
-                        await session.execute(text(sql))
+                        if sql.startswith("CREATE INDEX"):
+                            # Execute CREATE INDEX statements separately
+                            await session.execute(text(sql))
+                        elif not sql.startswith("ALTER TABLE"):  # Skip ALTER TABLE statements
+                            await session.execute(text(sql))
                         await session.commit()
                     except SQLAlchemyError as e:
                         logger.error(f"Error executing SQL: {e}")
