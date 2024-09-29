@@ -16,12 +16,18 @@ if DATABASE_URL.startswith("postgres://"):
 # For SQLite, we need to ensure the path is absolute
 if DATABASE_URL.startswith("sqlite"):
     DATABASE_URL = DATABASE_URL.replace("sqlite:", "sqlite+aiosqlite:")
-    if ":///" in DATABASE_URL:
-        sqlite_db_path = DATABASE_URL.split("////")[1]
-        DATABASE_URL = f"sqlite+aiosqlite:////{os.path.abspath(sqlite_db_path)}"
+    if DATABASE_URL.startswith("sqlite+aiosqlite:///"):
+        # It's already an absolute path
+        sqlite_db_path = DATABASE_URL.split("sqlite+aiosqlite:///")[1]
+    else:
+        # It's a relative path, make it absolute
+        sqlite_db_path = os.path.join(os.getcwd(), DATABASE_URL.split("sqlite+aiosqlite://")[1])
+    DATABASE_URL = f"sqlite+aiosqlite:///{sqlite_db_path}"
+
+print(f"Using DATABASE_URL: {DATABASE_URL}")  # Add this line for debugging
 
 # Create the async engine
-engine = create_async_engine(DATABASE_URL, echo=False, future=True)
+engine = create_async_engine(DATABASE_URL, echo=True, future=True)
 
 # Create the async session factory
 async_session = sessionmaker(
