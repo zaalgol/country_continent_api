@@ -4,7 +4,6 @@ sqlalchemy[asyncio]
 asyncpg
 alembic
 aiosqlite
-psycopg2-binary
 python-dotenv
 cachetools
 requests
